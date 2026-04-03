@@ -1,0 +1,272 @@
+openapi: 3.0.0
+info:
+  title: Finance Dashboard API
+  description: API documentation for the Finance Dashboard system supporting RBAC.
+  version: 1.0.0
+servers:
+  - url: {productionUrl}
+    description: Production Server
+    variables:
+      productionUrl:
+        default: https://api.yourdomain.com
+        description: This value is set dynamically by your cloud provider
+  - url: http://localhost:5005
+    description: Development Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [Viewer, Analyst, Admin]
+        status:
+          type: string
+          enum: [Active, Inactive]
+    Record:
+      type: object
+      properties:
+        _id:
+          type: string
+        amount:
+          type: number
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+        date:
+          type: string
+          format: date-time
+        description:
+          type: string
+        isDeleted:
+          type: boolean
+        createdBy:
+          $ref: '#/components/schemas/User'
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: User registered
+  /api/auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: JWT token returned
+  /api/records:
+    get:
+      summary: Get all records (Analyst, Admin)
+      tags: [Records]
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search term
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A paginated list of records
+    post:
+      summary: Create a newly tracked record (Admin Only)
+      tags: [Records]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, type, category]
+              properties:
+                amount:
+                  type: number
+                type:
+                  type: string
+                  enum: [income, expense]
+                category:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Record created successfully!
+  /api/records/{id}:
+    get:
+      summary: Get specific record
+      tags: [Records]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail object
+    put:
+      summary: Update record (Admin only)
+      tags: [Records]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Record'
+      responses:
+        '200':
+          description: Record updated
+    delete:
+      summary: Soft Delete record (Admin only)
+      tags: [Records]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Record marked as isDeleted
+  /api/dashboard/summary:
+    get:
+      summary: Retrieve Net metrics
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Overall financial aggregation block
+  /api/dashboard/trends:
+    get:
+      summary: Retrieve Monthly timeline
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Array of timeline nodes
+  /api/dashboard/category-totals:
+    get:
+      summary: Retrieve Income/Expense breakdowns
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Categorized payload breakdown
+  /api/dashboard/recent:
+    get:
+      summary: Fetches the latest 10 items
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Recent items array
+  /api/users:
+    get:
+      summary: List all users (Admin only)
+      tags: [Users]
+      responses:
+        '200':
+          description: JSON User payload
+  /api/users/{id}/role:
+    put:
+      summary: Modify targeted user role
+      tags: [Users]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [Viewer, Analyst, Admin]
+      responses:
+        '200':
+          description: Role updated
+  /api/users/{id}/status:
+    put:
+      summary: Modify targeted user status
+      tags: [Users]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Active, Inactive]
+      responses:
+        '200':
+          description: Status updated
