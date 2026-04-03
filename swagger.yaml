@@ -4,11 +4,11 @@ info:
   description: API documentation for the Finance Dashboard system supporting RBAC.
   version: 1.0.0
 servers:
-  - url: {productionUrl}
+  - url: "{productionUrl}"
     description: Production Server
     variables:
       productionUrl:
-        default: https://api.yourdomain.com
+        default: https://finanace-zorvyn-backend.onrender.com
         description: This value is set dynamically by your cloud provider
   - url: http://localhost:5005
     description: Development Server
