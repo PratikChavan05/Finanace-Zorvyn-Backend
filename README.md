@@ -76,11 +76,24 @@ You can visualize and interactively test the complete REST framework bypassing P
 
 ---
 
-## 🤔 Assumptions & Tradeoffs
-1. **Soft Defaults over Hard Deletions**: Deleting a record via the `DELETE /records/:id` API intentionally updates an `isDeleted: true` flag rather than erasing the schema `record.deleteOne()`. This scales better for enterprise finance ledgers avoiding irreversible data loss. Our aggregations inherently ignore ghost entries using `$match: { isDeleted: false }`.
-2. **Registration Open-Door Default**: Open `POST /api/auth/register` natively registers all users as `Viewer` status. Only standard Admins can elevate a profile's rights organically avoiding open security vectors. 
-3. **Regex Queries vs Full-Text Indexing**: Filtering `?search=` maps to basic MongoDB `$regex` match expressions scanning the `description` and `category`. While simple and fully operational on this scale without requiring DB index alterations, a full-text Search Index would scale faster over millions of documents.
-4. **Pagination Memory Traces**: Applied native limits parsing skip nodes in memory avoiding array choking during high throughput.
+## 🤔 About Project
+1. Choice of Framework & Architecture I utilized Node.js with Express.js for the backend. Express was chosen for its minimal footprint and immense flexibility, allowing me to build a highly structured, layered architecture (separating Routes, Controllers, Models, and Middlewares). This separation of concerns ensures that business logic is strictly decoupled from routing, establishing a clean, maintainable, and easily testable codebase.
+
+2. Database Selection (MongoDB & Mongoose) I selected MongoDB as the database, utilizing Mongoose for Object Data Modeling (ODM). Financial records and dashboard metrics often require rapid iteration on schemas. MongoDB provided the flexibility needed, while Mongoose enforced strict data validations at the application layer. Instead of writing complex SQL joins for the dashboard insights, I leveraged MongoDB’s native Aggregation Pipelines ($group, $match, $project). This allowed the backend to compute category breakdowns and monthly multi-node trends directly at the database level, drastically reducing the memory overhead on the Node server.
+
+3. Authentication & Access Control Approach I opted for stateless JSON Web Tokens (JWT) combined with bcrypt for password hashing. By embedding the user’s id and role within the JWT payload, the authentication middleware can instantly verify and authorize requests without needing to repeatedly hit the database to check session states.
+
+I implemented a strict Role-Based Access Control (RBAC) system using a custom middleware guard (authorize('Viewer', 'Analyst', 'Admin')).
+
+A Trade-off considered here was registration friction vs. security: I intentionally designed the POST /register route to default all new signups to the lowest permissions tier (Viewer). This creates initial friction, as an Admin must manually elevate their status to Analyst, but it secures the application against automated bot-takeovers or unauthorized data mutations.
+4. Data Integrity: Soft Deletions over Hard Deletions A major architectural decision was implementing "Soft Deletes." When an Admin triggers a DELETE request, the record's isDeleted boolean is toggled to true, rather than invoking record.deleteOne().
+
+Trade-off: This permanently increases the overall database storage size over time, but in a financial application context, the auditability, ledger preservation, and ability to recover accidentally deleted transaction records far outweigh the storage costs. All reading APIs and Dashboard Aggregations immediately filter out these ghost records using { $match: { isDeleted: false } }.
+5. Querying & Search Capabilities I implemented dynamic offset pagination (page, limit) natively within Mongoose combining .skip() and .limit(). For record hunting, I implemented RegEx $or statements targeting descriptions and categories based on search queries.
+
+Trade-off: Currently, standard RegEx querying is used instead of instantiating dedicated MongoDB Full-Text Search Indexes. While RegEx is simple, elegant, and highly performant at our current scale, a tradeoff was made against ultra-high throughput; if the finance ledger scales to tens of millions of records, migrating to a dedicated Text Index would be required to maintain sub-millisecond search latencies.
+6. API Security & Documentation To ensure reliability, I wrapped the server in an express-rate-limit guard limiting IP connections to prevent spam or brute-forcing. Finally, all endpoints, parameters, and authentication requirements were formally mapped using an OpenAPI 3.0 swagger.yaml structure, generating a live UI utilizing swagger-ui-express to bridge the communication gap between the backend and future frontend clients seamlessly.
+
 
 ---
 *Built intricately mapping rigorous backend system integration goals.*
